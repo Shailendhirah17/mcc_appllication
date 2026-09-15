@@ -686,32 +686,153 @@ io.on('connection', (socket) => {
     // Early finish is NOT triggered automatically, keeping players in anticipation.
   });
 
-  // Disconnect handling
-  socket.on('disconnect', () => {
-    if (socket.isHost && socket.gamePin) {
-      const game = games.get(socket.gamePin);
-      if (game) {
-        clearInterval(game.timerInterval);
-        io.to(game.pin).emit('game:cancelled', { message: 'Host has ended the session.' });
-        games.delete(socket.gamePin);
-      }
-    } else if (socket.gamePin) {
-      const game = games.get(socket.gamePin);
-      if (game) {
-        game.players.delete(socket.id);
-        game.currentAnswers.delete(socket.id);
+  // Host Reconnects after page refresh
+  socket.on('host:reconnect', ({ pin, sessionId }) => {
+    const game = games.get(pin);
+    if (game) {
+      game.hostSocketId = socket.id;
+      socket.join(pin);
+      socket.gamePin = pin;
+      socket.isHost = true;
 
-        io.to(game.hostSocketId).emit('host:player_left', {
-          playerId: socket.id,
-          totalPlayers: game.players.size,
-          players: Array.from(game.players.values()).map(p => ({
-            id: p.id,
-            nickname: p.nickname,
-            avatar: p.avatar
-          }))
-        });
+      const currentQ = (game.currentQuestionIndex >= 0 && game.currentQuestionIndex < game.questions.length)
+        ? game.questions[game.currentQuestionIndex]
+        : null;
+
+      socket.emit('host:restore_state', {
+        pin: game.pin,
+        state: game.state,
+        totalQuestions: game.questions.length,
+        currentQuestionIndex: game.currentQuestionIndex,
+        currentTimeLeft: Math.max(0, game.currentTimeLeft),
+        timePerQuestion: game.timePerQuestion,
+        question: currentQ ? currentQ.question : '',
+        options: currentQ ? currentQ.options : [],
+        players: Array.from(game.players.values()).map(p => ({
+          id: p.id,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          score: p.score,
+          streak: p.streak
+        })),
+        totalPlayers: game.players.size,
+        totalAnswered: game.currentAnswers.size,
+        allAnswered: game.currentAnswers.size >= game.players.size,
+        lastResult: game.lastQuestionResult || null,
+        finalResults: game.lastFinalResults || null
+      });
+    } else if (sessionId && questionSets.has(sessionId)) {
+      socket.emit('host:restore_review', questionSets.get(sessionId));
+    } else {
+      socket.emit('host:session_expired');
+    }
+  });
+
+  // Student Reconnects after page refresh on phone
+  socket.on('player:reconnect', ({ pin, nickname }) => {
+    const trimmedPin = (pin || '').toString().trim();
+    const game = games.get(trimmedPin);
+    if (!game) {
+      return socket.emit('player:session_expired', { message: 'Game session not found or ended.' });
+    }
+
+    // Find player by nickname
+    let player = null;
+    let oldSocketId = null;
+    for (const [sId, p] of game.players.entries()) {
+      if (p.nickname.toLowerCase() === (nickname || '').toLowerCase()) {
+        player = p;
+        oldSocketId = sId;
+        break;
       }
     }
+
+    if (!player) {
+      return socket.emit('player:session_expired', { message: 'Player record not found.' });
+    }
+
+    // Update socket mapping
+    game.players.delete(oldSocketId);
+    player.id = socket.id;
+    game.players.set(socket.id, player);
+
+    if (game.currentAnswers.has(oldSocketId)) {
+      const ans = game.currentAnswers.get(oldSocketId);
+      game.currentAnswers.delete(oldSocketId);
+      game.currentAnswers.set(socket.id, ans);
+    }
+
+    socket.join(trimmedPin);
+    socket.gamePin = trimmedPin;
+    socket.isHost = false;
+
+    const currentQ = (game.currentQuestionIndex >= 0 && game.currentQuestionIndex < game.questions.length)
+      ? game.questions[game.currentQuestionIndex]
+      : null;
+
+    const hasAnswered = game.currentAnswers.has(socket.id);
+    const myLastHistory = player.history[player.history.length - 1] || null;
+
+    // Calculate current rank
+    const ranked = Array.from(game.players.values()).sort((a, b) => b.score - a.score);
+    const myRank = ranked.findIndex(p => p.nickname === player.nickname) + 1;
+
+    socket.emit('player:restore_state', {
+      pin: trimmedPin,
+      state: game.state,
+      player,
+      currentQuestionIndex: game.currentQuestionIndex,
+      totalQuestions: game.questions.length,
+      currentTimeLeft: Math.max(0, game.currentTimeLeft),
+      timePerQuestion: game.timePerQuestion,
+      question: currentQ ? currentQ.question : '',
+      options: currentQ ? currentQ.options : [],
+      hasAnswered,
+      selectedOption: hasAnswered ? game.currentAnswers.get(socket.id).optionIndex : null,
+      lastResult: (game.state === 'LEADERBOARD' && myLastHistory) ? {
+        isCorrect: myLastHistory.isCorrect,
+        pointsEarned: myLastHistory.pointsEarned,
+        totalScore: player.score,
+        rank: myRank,
+        totalPlayers: game.players.size,
+        streak: player.streak,
+        explanation: currentQ ? currentQ.explanation : ''
+      } : null,
+      finalResults: game.lastFinalResults ? {
+        rank: myRank,
+        totalScore: player.score,
+        correctAnswers: player.history.filter(h => h.isCorrect).length,
+        totalQuestions: game.questions.length,
+        totalPlayers: game.players.size,
+        podium: {
+          first: game.lastFinalResults.podium.first?.nickname || null,
+          second: game.lastFinalResults.podium.second?.nickname || null,
+          third: game.lastFinalResults.podium.third?.nickname || null
+        }
+      } : null
+    });
+  });
+
+  // Host clicks "Fresh Start"
+  socket.on('host:fresh_start', (data) => {
+    const pin = (data && data.pin) || socket.gamePin;
+    if (pin) {
+      const game = games.get(pin);
+      if (game) {
+        clearInterval(game.timerInterval);
+        io.to(game.pin).emit('game:cancelled', { message: 'Host has reset the quiz session.' });
+        games.delete(pin);
+      }
+    }
+    socket.gamePin = null;
+    socket.isHost = false;
+    socket.emit('host:fresh_start_confirmed');
+  });
+
+  // Disconnect handling (Preserves session on browser refresh!)
+  socket.on('disconnect', () => {
+    // We intentionally keep session alive so refresh preserves everything seamlessly!
+    // Game is only closed when host clicks "Fresh Start" or ends game.
   });
 });
 
@@ -837,8 +958,8 @@ function finishQuestion(game) {
     });
   }
 
-  // Send host intermediate scoreboard & answer distribution
-  io.to(game.hostSocketId).emit('host:question_result', {
+  // Cache last question result for recovery on refresh
+  game.lastQuestionResult = {
     questionIndex: game.currentQuestionIndex,
     totalQuestions: game.questions.length,
     correctOptionIndex,
@@ -847,7 +968,10 @@ function finishQuestion(game) {
     leaderboard: rankedPlayers.slice(0, 5), // Top 5
     allPlayers: rankedPlayers,
     isLastQuestion: game.currentQuestionIndex + 1 >= game.questions.length
-  });
+  };
+
+  // Send host intermediate scoreboard & answer distribution
+  io.to(game.hostSocketId).emit('host:question_result', game.lastQuestionResult);
 }
 
 // Show Final Podium & Game Scorecard
@@ -867,8 +991,7 @@ function showFinalPodium(game) {
       totalQuestions: game.questions.length
     }));
 
-  // Send final podium to host
-  io.to(game.hostSocketId).emit('host:final_results', {
+  game.lastFinalResults = {
     podium: {
       first: finalRankings[0] || null,
       second: finalRankings[1] || null,
@@ -876,7 +999,10 @@ function showFinalPodium(game) {
     },
     fullRankings: finalRankings,
     totalQuestions: game.questions.length
-  });
+  };
+
+  // Send final podium to host
+  io.to(game.hostSocketId).emit('host:final_results', game.lastFinalResults);
 
   // Send final results to all players
   for (const p of finalRankings) {

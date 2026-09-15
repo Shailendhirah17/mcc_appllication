@@ -29,6 +29,42 @@ function switchView(viewName) {
   }
 }
 
+// --- Session Persistence across Browser Refresh ---
+const HOST_STORAGE_KEY = 'kahoot_host_session';
+
+function saveHostState(extra = {}) {
+  try {
+    const existing = getHostState() || {};
+    const stateObj = {
+      ...existing,
+      currentGamePin: currentGamePin || existing.currentGamePin || null,
+      currentSession: currentSession || existing.currentSession || null,
+      timestamp: Date.now(),
+      ...extra
+    };
+    localStorage.setItem(HOST_STORAGE_KEY, JSON.stringify(stateObj));
+  } catch (e) {
+    console.warn('Failed to save host state:', e);
+  }
+}
+
+function getHostState() {
+  try {
+    const str = localStorage.getItem(HOST_STORAGE_KEY);
+    return str ? JSON.parse(str) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearHostState() {
+  try {
+    localStorage.removeItem(HOST_STORAGE_KEY);
+  } catch (e) {
+    console.warn('Failed to clear host state:', e);
+  }
+}
+
 // Fetch network info on boot
 async function initNetworkInfo() {
   try {
@@ -43,6 +79,32 @@ async function initNetworkInfo() {
   }
 }
 initNetworkInfo();
+
+function checkRestoreHostSession() {
+  const saved = getHostState();
+  if (!saved) return;
+
+  if (saved.currentSession) {
+    currentSession = saved.currentSession;
+  }
+
+  if (saved.currentGamePin) {
+    currentGamePin = saved.currentGamePin;
+    console.log('Restoring previous game session PIN:', saved.currentGamePin);
+    socket.emit('host:reconnect', {
+      pin: saved.currentGamePin,
+      sessionId: saved.currentSession?.sessionId
+    });
+  } else if (saved.currentView === 'review' && saved.currentSession) {
+    console.log('Restoring previous review screen');
+    renderReviewView(saved.currentSession);
+  }
+}
+
+// Check session on socket connect or reconnect
+socket.on('connect', () => {
+  checkRestoreHostSession();
+});
 
 // Sound toggle
 const muteBtn = document.getElementById('btn-mute');
@@ -309,6 +371,7 @@ if (btnSample100) {
 // --- STAGE 2: Render Review & Download Remaining ---
 function renderReviewView(data) {
   currentSession = data;
+  saveHostState({ currentView: 'review', currentSession: data });
   switchView('review');
 
   const liveBadge = document.getElementById('stat-live-count');
@@ -426,23 +489,28 @@ if (btnLaunchLobby) {
 }
 
 // --- STAGE 3: Live Lobby ---
-socket.on('host:game_created', ({ pin, totalQuestions, timePerQuestion }) => {
-  currentGamePin = pin;
-  switchView('lobby');
-
-  const pinDisplay = document.getElementById('pin-display');
-  if (pinDisplay) pinDisplay.textContent = pin;
-
-  // Render Phone QR Code
-  const joinUrl = `${networkInfo.joinUrl || `http://${window.location.host}/join.html`}?pin=${pin}`;
+function renderLobbyQR(pin) {
   const qrContainer = document.getElementById('lobby-qrcode');
   if (qrContainer && window.QRCode) {
+    qrContainer.innerHTML = '';
+    const joinUrl = `${networkInfo.joinUrl || `http://${window.location.host}/join.html`}?pin=${pin}`;
     new window.QRCode(qrContainer, {
       text: joinUrl,
       width: 170,
       height: 170
     });
   }
+}
+
+socket.on('host:game_created', ({ pin, totalQuestions, timePerQuestion }) => {
+  currentGamePin = pin;
+  saveHostState({ currentView: 'lobby', currentGamePin: pin });
+  switchView('lobby');
+
+  const pinDisplay = document.getElementById('pin-display');
+  if (pinDisplay) pinDisplay.textContent = pin;
+
+  renderLobbyQR(pin);
 
   const joinHint = document.getElementById('join-url-text');
   if (joinHint) {
@@ -500,6 +568,7 @@ socket.on('game:get_ready', ({ count }) => {
 // --- STAGE 4: Live Question Screen ---
 socket.on('host:question_start', (data) => {
   switchView('question');
+  saveHostState({ currentView: 'question', lastQuestionData: data });
   
   const qNum = document.getElementById('live-q-progress');
   const qText = document.getElementById('live-question-text');
@@ -563,22 +632,23 @@ if (btnSkipQuestion) {
 }
 
 // --- STAGE 5: Question Scorecard / Leaderboard ---
-socket.on('host:question_result', (data) => {
+function renderQuestionResult(data) {
+  if (!data) return;
   switchView('results');
+  saveHostState({ currentView: 'results', lastResultData: data });
   window.quizAudio.playTone(523.25, 'triangle', 0.25);
 
   const banner = document.getElementById('correct-answer-banner');
   const symbols = ['▲', '◆', '●', '■'];
-  const colors = ['Red', 'Blue', 'Yellow', 'Green'];
   
   if (banner) {
     banner.innerHTML = `<span>Correct Answer:</span> <strong style="color:#68d391">${symbols[data.correctOptionIndex]} Option ${['A', 'B', 'C', 'D'][data.correctOptionIndex]}</strong>`;
   }
 
   // Animate Distribution Chart
-  const totalAnswers = data.distribution.reduce((a, b) => a + b, 0) || 1;
+  const totalAnswers = data.distribution ? data.distribution.reduce((a, b) => a + b, 0) || 1 : 1;
   for (let i = 0; i < 4; i++) {
-    const count = data.distribution[i];
+    const count = data.distribution ? data.distribution[i] : 0;
     const bar = document.getElementById(`dist-bar-${i}`);
     const countLabel = document.getElementById(`dist-count-${i}`);
     const pct = Math.round((count / totalAnswers) * 100);
@@ -589,7 +659,7 @@ socket.on('host:question_result', (data) => {
 
   // Render Top 5 Leaderboard
   const lbList = document.getElementById('leaderboard-rows');
-  if (lbList) {
+  if (lbList && data.leaderboard) {
     lbList.innerHTML = '';
     data.leaderboard.forEach(player => {
       const row = document.createElement('div');
@@ -615,6 +685,10 @@ socket.on('host:question_result', (data) => {
   if (btnNext) {
     btnNext.textContent = data.isLastQuestion ? '🏆 Reveal Final Podium!' : 'Next Question ➔';
   }
+}
+
+socket.on('host:question_result', (data) => {
+  renderQuestionResult(data);
 });
 
 // Next question trigger
@@ -626,15 +700,17 @@ if (btnNextStep) {
 }
 
 // --- STAGE 6: Final Podium & Scorecard ---
-socket.on('host:final_results', (data) => {
+function renderFinalResults(data) {
+  if (!data) return;
   switchView('podium');
+  saveHostState({ currentView: 'podium', lastFinalData: data });
   window.quizAudio.playFanfare();
   launchConfetti();
 
   // Populate Podium 1st, 2nd, 3rd
-  const p1 = data.podium.first;
-  const p2 = data.podium.second;
-  const p3 = data.podium.third;
+  const p1 = data.podium ? data.podium.first : null;
+  const p2 = data.podium ? data.podium.second : null;
+  const p3 = data.podium ? data.podium.third : null;
 
   setPodiumData('1st', p1);
   setPodiumData('2nd', p2);
@@ -642,7 +718,7 @@ socket.on('host:final_results', (data) => {
 
   // Populate Full Rankings Table
   const tableBody = document.getElementById('final-rankings-body');
-  if (tableBody) {
+  if (tableBody && data.fullRankings) {
     tableBody.innerHTML = '';
     data.fullRankings.forEach(p => {
       const tr = document.createElement('tr');
@@ -655,6 +731,10 @@ socket.on('host:final_results', (data) => {
       tableBody.appendChild(tr);
     });
   }
+}
+
+socket.on('host:final_results', (data) => {
+  renderFinalResults(data);
 });
 
 function setPodiumData(pos, player) {
@@ -723,10 +803,134 @@ function launchConfetti() {
   setTimeout(() => cancelAnimationFrame(animationFrame), 12000);
 }
 
+// --- RESTORATION ACROSS BROWSER REFRESH ---
+socket.on('host:restore_state', (data) => {
+  console.log('Restoring host state from server:', data.state);
+  currentGamePin = data.pin;
+  saveHostState({ currentGamePin: data.pin });
+
+  const pinDisplay = document.getElementById('pin-display');
+  if (pinDisplay) pinDisplay.textContent = data.pin;
+
+  if (data.state === 'LOBBY') {
+    switchView('lobby');
+    saveHostState({ currentView: 'lobby' });
+    updatePlayerRoster(data.players || [], data.totalPlayers || 0);
+    renderLobbyQR(data.pin);
+  } else if (data.state === 'QUESTION' || data.state === 'COUNTDOWN') {
+    switchView('question');
+    saveHostState({ currentView: 'question' });
+
+    const qNum = document.getElementById('live-q-progress');
+    const qText = document.getElementById('live-question-text');
+    const timerSec = document.getElementById('timer-seconds-display');
+    const answerCount = document.getElementById('live-answered-count');
+
+    if (qNum) qNum.textContent = `Question ${data.currentQuestionIndex + 1} of ${data.totalQuestions}`;
+    if (qText) qText.textContent = data.question;
+    if (timerSec) {
+      timerSec.textContent = data.currentTimeLeft;
+      if (data.currentTimeLeft <= 5) timerSec.classList.add('urgent');
+      else timerSec.classList.remove('urgent');
+    }
+    if (answerCount) {
+      if (data.allAnswered) {
+        answerCount.innerHTML = `<strong>${data.totalAnswered} / ${data.totalPlayers} (All in! ⏳)</strong>`;
+      } else {
+        answerCount.textContent = `${data.totalAnswered} / ${data.totalPlayers} Answered`;
+      }
+    }
+
+    const optA = document.getElementById('opt-text-0');
+    const optB = document.getElementById('opt-text-1');
+    const optC = document.getElementById('opt-text-2');
+    const optD = document.getElementById('opt-text-3');
+
+    if (optA) optA.textContent = data.options[0] || '';
+    if (optB) optB.textContent = data.options[1] || '';
+    if (optC) optC.textContent = data.options[2] || '';
+    if (optD) optD.textContent = data.options[3] || '';
+  } else if (data.state === 'LEADERBOARD') {
+    if (data.lastResult) {
+      renderQuestionResult(data.lastResult);
+    } else {
+      switchView('results');
+    }
+    saveHostState({ currentView: 'results' });
+  } else if (data.state === 'FINAL') {
+    if (data.finalResults) {
+      renderFinalResults(data.finalResults);
+    } else {
+      switchView('podium');
+    }
+    saveHostState({ currentView: 'podium' });
+  }
+});
+
+socket.on('host:restore_review', (data) => {
+  renderReviewView(data);
+});
+
+socket.on('host:session_expired', () => {
+  console.log('Host session expired on server');
+  executeFreshStartReset();
+});
+
+// --- FRESH START SESSION RESET ---
+function executeFreshStartReset() {
+  clearHostState();
+  currentGamePin = null;
+  currentSession = null;
+  selectedFile = null;
+
+  if (fileStatus) fileStatus.classList.remove('show');
+  if (fileInput) fileInput.value = '';
+  if (fileNameLabel) fileNameLabel.textContent = 'Document loaded';
+
+  const rosterGrid = document.getElementById('players-grid');
+  if (rosterGrid) rosterGrid.innerHTML = '';
+  const rosterCount = document.getElementById('roster-count');
+  if (rosterCount) rosterCount.textContent = '0';
+
+  if (window.quizAudio) {
+    window.quizAudio.stopLobbyMusic();
+  }
+
+  switchView('upload');
+}
+
+const btnFreshStart = document.getElementById('btn-fresh-start');
+if (btnFreshStart) {
+  btnFreshStart.addEventListener('click', () => {
+    const isOngoing = currentGamePin || currentSession;
+    if (isOngoing) {
+      const ok = confirm("Start Fresh?\n\nThis will reset the quiz session, disconnect any connected student phones, and return to the document upload screen.");
+      if (!ok) return;
+    }
+    if (currentGamePin) {
+      socket.emit('host:fresh_start', { pin: currentGamePin });
+    }
+    executeFreshStartReset();
+  });
+}
+
+socket.on('host:fresh_start_confirmed', () => {
+  executeFreshStartReset();
+});
+
 // Play Again Button
 const btnPlayAgain = document.getElementById('btn-play-again');
 if (btnPlayAgain) {
   btnPlayAgain.addEventListener('click', () => {
-    window.location.reload();
+    if (currentGamePin) {
+      socket.emit('host:fresh_start', { pin: currentGamePin });
+    }
+    if (currentSession) {
+      currentGamePin = null;
+      saveHostState({ currentView: 'review', currentGamePin: null });
+      renderReviewView(currentSession);
+    } else {
+      executeFreshStartReset();
+    }
   });
 }

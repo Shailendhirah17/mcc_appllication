@@ -24,6 +24,40 @@ function showScreen(name) {
   }
 }
 
+// --- Session Persistence across Phone / Browser Refresh ---
+const STUDENT_STORAGE_KEY = 'kahoot_player_session';
+
+function saveStudentState(extra = {}) {
+  try {
+    const existing = getStudentState() || {};
+    const stateObj = {
+      ...existing,
+      timestamp: Date.now(),
+      ...extra
+    };
+    localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(stateObj));
+  } catch (e) {
+    console.warn('Failed to save student state:', e);
+  }
+}
+
+function getStudentState() {
+  try {
+    const str = localStorage.getItem(STUDENT_STORAGE_KEY);
+    return str ? JSON.parse(str) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearStudentState() {
+  try {
+    localStorage.removeItem(STUDENT_STORAGE_KEY);
+  } catch (e) {
+    console.warn('Failed to clear student state:', e);
+  }
+}
+
 // Auto-fill PIN from URL query param if scanned via QR Code
 const urlParams = new URLSearchParams(window.location.search);
 const pinInput = document.getElementById('player-pin-input');
@@ -34,6 +68,39 @@ const joinError = document.getElementById('join-error-msg');
 if (urlParams.has('pin') && pinInput) {
   pinInput.value = urlParams.get('pin');
 }
+
+// Check and restore student session on boot or reconnect
+function checkRestoreStudentSession() {
+  const saved = getStudentState();
+  if (!saved) return;
+
+  if (saved.pin && pinInput && !pinInput.value) {
+    pinInput.value = saved.pin;
+  }
+  if (saved.nickname && nameInput && !nameInput.value) {
+    nameInput.value = saved.nickname;
+  }
+  if (saved.avatar) {
+    selectedAvatar = saved.avatar;
+    const chips = document.querySelectorAll('.avatar-chip');
+    chips.forEach(c => {
+      if (c.dataset.avatar === saved.avatar) c.classList.add('selected');
+      else c.classList.remove('selected');
+    });
+  }
+
+  if (saved.pin && saved.nickname) {
+    console.log('Restoring student session:', saved.nickname, saved.pin);
+    socket.emit('player:reconnect', {
+      pin: saved.pin,
+      nickname: saved.nickname
+    });
+  }
+}
+
+socket.on('connect', () => {
+  checkRestoreStudentSession();
+});
 
 // Avatar selection
 let selectedAvatar = '🚀';
@@ -85,7 +152,7 @@ function showError(msg) {
   }
   if (btnJoin) {
     btnJoin.disabled = false;
-    btnJoin.textContent = 'Join Game';
+    btnJoin.textContent = 'Join Game ➔';
   }
 }
 
@@ -95,6 +162,12 @@ socket.on('player:join_error', ({ message }) => {
 
 // Joined Success -> Lobby Waiting Room
 socket.on('player:join_success', ({ pin, player }) => {
+  saveStudentState({
+    pin,
+    nickname: player.nickname,
+    avatar: player.avatar || selectedAvatar,
+    screen: 'waiting'
+  });
   showScreen('waiting');
   
   const waitingName = document.getElementById('waiting-player-name');
@@ -114,6 +187,7 @@ let hasAnswered = false;
 
 socket.on('player:question_start', (data) => {
   hasAnswered = false;
+  saveStudentState({ screen: 'question', lastQuestion: data, hasAnswered: false, selectedOption: null });
   showScreen('question');
 
   const qNum = document.getElementById('mobile-q-num');
@@ -163,6 +237,7 @@ optionButtons.forEach(btn => {
     hasAnswered = true;
 
     const optIndex = parseInt(btn.dataset.index, 10);
+    saveStudentState({ hasAnswered: true, selectedOption: optIndex });
 
     // Audio & tactile feedback
     if (window.quizAudio) window.quizAudio.playTap();
@@ -188,8 +263,10 @@ optionButtons.forEach(btn => {
 });
 
 // --- QUESTION SCORECARD / RESULT ---
-socket.on('player:question_result', (data) => {
+function renderStudentResult(data) {
+  if (!data) return;
   showScreen('result');
+  saveStudentState({ screen: 'result', lastResult: data });
 
   const screenResult = document.getElementById('screen-result');
   const heroIcon = document.getElementById('result-hero-icon');
@@ -204,7 +281,7 @@ socket.on('player:question_result', (data) => {
     }
     if (heroIcon) heroIcon.textContent = '🎉';
     if (heroTitle) heroTitle.textContent = 'CORRECT!';
-    if (pointsBadge) pointsBadge.textContent = `+${data.pointsEarned.toLocaleString()} pts`;
+    if (pointsBadge) pointsBadge.textContent = `+${(data.pointsEarned || 0).toLocaleString()} pts`;
     if (window.quizAudio) window.quizAudio.playCorrect();
   } else {
     if (screenResult) {
@@ -220,18 +297,24 @@ socket.on('player:question_result', (data) => {
     rankCard.innerHTML = `
       <div>Rank <strong>#${data.rank}</strong> of ${data.totalPlayers}</div>
       <div>|</div>
-      <div>Score: <strong>${data.totalScore.toLocaleString()} pts</strong></div>
+      <div>Score: <strong>${(data.totalScore || 0).toLocaleString()} pts</strong></div>
     `;
   }
 
   if (streakBox) {
     streakBox.textContent = data.streak > 1 ? `🔥 Answer Streak: ${data.streak} in a row!` : '';
   }
+}
+
+socket.on('player:question_result', (data) => {
+  renderStudentResult(data);
 });
 
 // --- FINAL SCORECARD ---
-socket.on('player:final_results', (data) => {
+function renderStudentFinal(data) {
+  if (!data) return;
   showScreen('final');
+  saveStudentState({ screen: 'final', lastFinal: data });
   if (window.quizAudio) window.quizAudio.playFanfare();
 
   const rankBadge = document.getElementById('final-rank-badge');
@@ -243,22 +326,115 @@ socket.on('player:final_results', (data) => {
   const rankText = medals[data.rank - 1] || `Rank #${data.rank}`;
 
   if (rankBadge) rankBadge.textContent = rankText;
-  if (scoreVal) scoreVal.textContent = `${data.totalScore.toLocaleString()} pts`;
+  if (scoreVal) scoreVal.textContent = `${(data.totalScore || 0).toLocaleString()} pts`;
   
-  const pct = Math.round((data.correctAnswers / data.totalQuestions) * 100) || 0;
-  if (accuracyVal) accuracyVal.textContent = `${data.correctAnswers}/${data.totalQuestions} (${pct}%)`;
+  const totalQ = data.totalQuestions || 10;
+  const pct = Math.round(((data.correctAnswers || 0) / totalQ) * 100) || 0;
+  if (accuracyVal) accuracyVal.textContent = `${data.correctAnswers || 0}/${totalQ} (${pct}%)`;
 
   if (podiumHint) {
     if (data.rank <= 3) {
       podiumHint.textContent = '🌟 Look at the big screen! You are on the podium!';
     } else {
-      podiumHint.textContent = `Winner: 🏆 ${data.podium.first || 'Champion'}`;
+      podiumHint.textContent = `Winner: 🏆 ${data.podium?.first || 'Champion'}`;
+    }
+  }
+}
+
+socket.on('player:final_results', (data) => {
+  renderStudentFinal(data);
+});
+
+// --- RESTORATION ACROSS BROWSER REFRESH ---
+socket.on('player:restore_state', (data) => {
+  console.log('Restoring student state from server:', data.state);
+  saveStudentState({
+    pin: data.pin,
+    nickname: data.player.nickname,
+    avatar: data.player.avatar
+  });
+
+  if (data.state === 'LOBBY' || data.state === 'COUNTDOWN') {
+    showScreen('waiting');
+    const waitingName = document.getElementById('waiting-player-name');
+    const waitingAvatar = document.getElementById('waiting-player-avatar');
+    if (waitingName) waitingName.textContent = data.player.nickname;
+    if (waitingAvatar) waitingAvatar.textContent = data.player.avatar || '🚀';
+  } else if (data.state === 'QUESTION') {
+    showScreen('question');
+    hasAnswered = data.hasAnswered;
+
+    const qNum = document.getElementById('mobile-q-num');
+    const timerPill = document.getElementById('mobile-timer-pill');
+    const qPreview = document.getElementById('mobile-q-preview');
+    const banner = document.getElementById('answer-locked-banner');
+
+    if (qNum) qNum.textContent = `Q${data.currentQuestionIndex + 1}/${data.totalQuestions}`;
+    if (timerPill) {
+      timerPill.textContent = `⏳ ${data.currentTimeLeft}s`;
+      if (data.currentTimeLeft <= 5) timerPill.classList.add('urgent');
+      else timerPill.classList.remove('urgent');
+    }
+    if (qPreview) qPreview.textContent = data.question;
+
+    const buttons = document.querySelectorAll('.touch-btn');
+    buttons.forEach((btn, index) => {
+      const btnText = btn.querySelector('.btn-text');
+      if (btnText && data.options[index]) {
+        btnText.textContent = data.options[index];
+      }
+
+      if (data.hasAnswered) {
+        btn.disabled = true;
+        if (index === data.selectedOption) {
+          btn.classList.add('selected');
+          btn.classList.remove('faded');
+        } else {
+          btn.classList.add('faded');
+          btn.classList.remove('selected');
+        }
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('selected', 'faded');
+      }
+    });
+
+    if (banner) {
+      if (data.hasAnswered) banner.classList.add('show');
+      else banner.classList.remove('show');
+    }
+  } else if (data.state === 'LEADERBOARD') {
+    if (data.lastResult) {
+      renderStudentResult(data.lastResult);
+    } else {
+      showScreen('waiting');
+    }
+  } else if (data.state === 'FINAL') {
+    if (data.finalResults) {
+      renderStudentFinal(data.finalResults);
+    } else {
+      showScreen('waiting');
     }
   }
 });
 
-// Host disconnected / game cancelled
+socket.on('player:session_expired', (data) => {
+  console.log('Student session expired:', data ? data.message : '');
+  clearStudentState();
+  showScreen('join');
+  if (btnJoin) {
+    btnJoin.disabled = false;
+    btnJoin.textContent = 'Join Game ➔';
+  }
+});
+
+// Host disconnected / game cancelled / Fresh Start
 socket.on('game:cancelled', ({ message }) => {
-  alert(message || 'The host has ended the session.');
-  window.location.reload();
+  clearStudentState();
+  alert(message || 'The host has ended or reset the quiz session.');
+  showScreen('join');
+  if (btnJoin) {
+    btnJoin.disabled = false;
+    btnJoin.textContent = 'Join Game ➔';
+  }
 });
