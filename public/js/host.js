@@ -499,13 +499,14 @@ if (btnLaunchLobby) {
 }
 
 // --- STAGE 3: Live Lobby ---
-// --- STAGE 3: Live Lobby ---
 function renderLobbyQR(pin, customUrl) {
   const qrContainer = document.getElementById('lobby-qrcode');
   if (qrContainer && window.QRCode) {
     qrContainer.innerHTML = '';
     const baseUrl = customUrl || networkInfo.joinUrl || 'http://172.20.10.3:3000/join.html';
     const fullJoinUrl = baseUrl.includes('?') ? `${baseUrl}&pin=${pin}` : `${baseUrl}?pin=${pin}`;
+
+    console.log('QR Code URL:', fullJoinUrl);
 
     const joinHint = document.getElementById('join-url-text');
     if (joinHint) {
@@ -514,8 +515,11 @@ function renderLobbyQR(pin, customUrl) {
 
     new window.QRCode(qrContainer, {
       text: fullJoinUrl,
-      width: 180,
-      height: 180
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : 0
     });
   }
 }
