@@ -1,25 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kahoot PDF to MCQ Generator & Real-Time Multiplayer Quiz</title>
-  <meta name="description" content="Generate MCQs from any PDF document and host real-time Kahoot-style multiplayer quizzes with phone joining, live timers, and instant scorecards.">
+  <meta name="description"
+    content="Generate MCQs from any PDF document and host real-time Kahoot-style multiplayer quizzes with phone joining, live timers, and instant scorecards.">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
 </head>
+
 <body>
   <canvas id="confetti-canvas"></canvas>
 
   <!-- App Navigation Header -->
   <header class="app-header">
     <a href="/" class="logo-wrap">
-      <span class="logo-badge">⚡ KahootMCQ</span>
+      <span class="logo-badge">CCE_MCQ</span>
       <span class="logo-tag">Live Host</span>
     </a>
     <div class="header-controls">
-      <button id="btn-fresh-start" class="icon-btn" style="background: rgba(226, 27, 60, 0.2); border-color: rgba(226, 27, 60, 0.4); color: #ff6b6b;" title="Reset session and start fresh">🔄 Fresh Start</button>
+      <button id="btn-fresh-start" class="icon-btn"
+        style="background: rgba(226, 27, 60, 0.2); border-color: rgba(226, 27, 60, 0.4); color: #ff6b6b;"
+        title="Reset session and start fresh">🔄 Fresh Start</button>
       <button id="btn-mute" class="icon-btn" title="Toggle Game Audio">🔊 Sound On</button>
-      <a href="/join.html" target="_blank" class="icon-btn primary" title="Open Phone Join Screen in new tab">📱 Student View</a>
+      <a href="/join.html" target="_blank" class="icon-btn primary" title="Open Phone Join Screen in new tab">📱 Student
+        View</a>
     </div>
   </header>
 
@@ -28,7 +36,8 @@
     <section id="view-upload" class="view-section active">
       <div class="hero-box">
         <h1 class="hero-title">Turn Any PDF into a Live Kahoot Quiz</h1>
-        <p class="hero-subtitle">Upload your lecture notes, question bank, or textbook PDF. We'll extract MCQs, set up the first 10 for a live multiplayer quiz with phone join, and let you download the rest!</p>
+        <p class="hero-subtitle">Upload your lecture notes, question bank, or textbook PDF. We'll extract MCQs, set up
+          the first 10 for a live multiplayer quiz with phone join, and let you download the rest!</p>
       </div>
 
       <div class="config-grid">
@@ -70,9 +79,11 @@
 
           <div class="input-group">
             <label class="input-label" for="api-key-input">Gemini API Key (Optional)</label>
-            <input type="password" id="api-key-input" class="text-input" placeholder="AI Studio Key (Leave blank to use built-in smart parser)">
+            <input type="password" id="api-key-input" class="text-input"
+              placeholder="AI Studio Key (Leave blank to use built-in smart parser)">
             <span style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: block;">
-              💡 Works out of the box! If left blank, our intelligent built-in parser extracts questions and answers automatically.
+              💡 Works out of the box! If left blank, our intelligent built-in parser extracts questions and answers
+              automatically.
             </span>
           </div>
 
@@ -87,8 +98,10 @@
     <section id="view-review" class="view-section">
       <div class="split-banner">
         <div>
-          <h2 style="font-family: var(--font-heading); font-size: 1.8rem; margin-bottom: 6px;">MCQs Extracted Successfully!</h2>
-          <p style="color: var(--text-muted); font-size: 1.05rem;">The first 10 questions are queued for the live interactive quiz. Remaining questions can be downloaded below.</p>
+          <h2 style="font-family: var(--font-heading); font-size: 1.8rem; margin-bottom: 6px;">MCQs Extracted
+            Successfully!</h2>
+          <p style="color: var(--text-muted); font-size: 1.05rem;">The first 10 questions are queued for the live
+            interactive quiz. Remaining questions can be downloaded below.</p>
         </div>
 
         <div class="split-stats">
@@ -106,22 +119,26 @@
           <a id="btn-dl-rem-csv" class="btn-download" href="#" download>📥 Download Remaining (CSV)</a>
           <a id="btn-dl-rem-json" class="btn-download" href="#" download>📥 Download Remaining (JSON)</a>
           <a id="btn-dl-rem-txt" class="btn-download" href="#" download>📝 Study Sheet (TXT)</a>
-          <a id="btn-dl-all-csv" class="btn-download" href="#" download style="background: rgba(134, 76, 191, 0.35);">📦 Download All (CSV)</a>
+          <a id="btn-dl-all-csv" class="btn-download" href="#" download style="background: rgba(134, 76, 191, 0.35);">📦
+            Download All (CSV)</a>
         </div>
       </div>
 
       <div class="glass-card" style="margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 14px;">
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 14px;">
           <h3 style="font-family: var(--font-heading); font-size: 1.4rem;">🎯 Live Quiz Questions (First 10)</h3>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <label for="time-per-q-select" style="font-weight: 600; color: var(--text-muted);">Timer per question:</label>
+            <label for="time-per-q-select" style="font-weight: 600; color: var(--text-muted);">Timer per
+              question:</label>
             <select id="time-per-q-select" class="select-input" style="width: auto; padding: 6px 14px;">
               <option value="15">15 seconds</option>
               <option value="20" selected>20 seconds</option>
               <option value="30">30 seconds</option>
               <option value="45">45 seconds</option>
             </select>
-            <button id="btn-launch-lobby" class="btn-generate" style="margin-top: 0; padding: 12px 28px; font-size: 1.2rem; width: auto;">
+            <button id="btn-launch-lobby" class="btn-generate"
+              style="margin-top: 0; padding: 12px 28px; font-size: 1.2rem; width: auto;">
               🚀 Launch Live Lobby
             </button>
           </div>
@@ -169,14 +186,15 @@
     <section id="view-question" class="view-section">
       <div class="question-live-header">
         <div id="live-q-progress" class="q-progress">Question 1 of 10</div>
-        
+
         <div class="timer-circle-wrap">
           <div id="timer-seconds-display" class="timer-seconds">20</div>
         </div>
 
         <div style="display: flex; align-items: center; gap: 14px;">
           <div id="live-answered-count" class="answer-counter">0 / 0 Answered</div>
-          <button id="btn-skip-question" class="icon-btn primary" title="Skip remaining timer and reveal answers">⏭ Skip Timer & Reveal</button>
+          <button id="btn-skip-question" class="icon-btn primary" title="Skip remaining timer and reveal answers">⏭ Skip
+            Timer & Reveal</button>
         </div>
       </div>
 
@@ -241,7 +259,8 @@
         <div class="leaderboard-box">
           <div class="lb-title">
             <span>🏆 Scorecard & Leaderboard</span>
-            <button id="btn-next-step" class="btn-generate" style="margin-top: 0; padding: 12px 28px; width: auto; font-size: 1.2rem;">
+            <button id="btn-next-step" class="btn-generate"
+              style="margin-top: 0; padding: 12px 28px; width: auto; font-size: 1.2rem;">
               Next Question ➔
             </button>
           </div>
@@ -313,4 +332,5 @@
   <script src="js/audio.js"></script>
   <script src="js/host.js"></script>
 </body>
+
 </html>

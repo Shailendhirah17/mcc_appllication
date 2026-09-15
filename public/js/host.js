@@ -3,7 +3,11 @@
  * Manages PDF upload, question splitting, live lobby, timer, question scorecards, and final podium
  */
 
-const socket = io();
+const socket = (typeof io !== 'undefined') ? io() : {
+  on: () => {},
+  emit: () => {},
+  connected: false
+};
 
 // State
 let currentSession = null;

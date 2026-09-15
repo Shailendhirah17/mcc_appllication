@@ -4,7 +4,11 @@
  * per-question scorecards, and final results.
  */
 
-const socket = io();
+const socket = (typeof io !== 'undefined') ? io() : {
+  on: () => {},
+  emit: () => {},
+  connected: false
+};
 
 // Screens
 const screens = {
