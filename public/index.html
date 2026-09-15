@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kahoot PDF to MCQ Generator & Real-Time Multiplayer Quiz</title>
+  <title>CCE_Quizzer - PDF to MCQ Generator & Real-Time Multiplayer Quiz</title>
   <meta name="description"
-    content="Generate MCQs from any PDF document and host real-time Kahoot-style multiplayer quizzes with phone joining, live timers, and instant scorecards.">
+    content="Generate MCQs from any PDF document and host real-time CCE-style multiplayer quizzes with phone joining, live timers, and instant scorecards.">
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" href="/favicon.ico">
@@ -18,7 +18,7 @@
   <!-- App Navigation Header -->
   <header class="app-header">
     <a href="/" class="logo-wrap">
-      <span class="logo-badge">CCE_MCQ</span>
+      <span class="logo-badge">CCE_Quizzer</span>
       <span class="logo-tag">Live Host</span>
     </a>
     <div class="header-controls">
@@ -35,7 +35,7 @@
     <!-- STAGE 1: PDF Upload & Configuration -->
     <section id="view-upload" class="view-section active">
       <div class="hero-box">
-        <h1 class="hero-title">Turn Any PDF into a Live Kahoot Quiz</h1>
+        <h1 class="hero-title">Turn Any PDF into a Live CCE Quiz</h1>
         <p class="hero-subtitle">Upload your lecture notes, question bank, or textbook PDF. We'll extract MCQs, set up
           the first 10 for a live multiplayer quiz with phone join, and let you download the rest!</p>
       </div>
@@ -158,7 +158,7 @@
             <div class="pin-label">Join with Game PIN</div>
             <div id="pin-display" class="pin-display">------</div>
             <div class="join-url-hint">
-              Join at: <strong id="join-url-text">localhost:3000/join.html</strong>
+              Join at: <strong id="join-url-text" style="color: #00d2ff; text-decoration: underline; cursor: pointer;" title="Click to copy join link">http://172.20.10.3:3000/join.html</strong>
             </div>
           </div>
 

@@ -12,7 +12,7 @@ const socket = (typeof io !== 'undefined') ? io() : {
 // State
 let currentSession = null;
 let currentGamePin = null;
-let networkInfo = { localIp: 'localhost', port: 3000, joinUrl: '' };
+let networkInfo = { localIp: '172.20.10.3', port: 3000, joinUrl: 'http://172.20.10.3:3000/join.html' };
 
 // DOM Elements
 const views = {
@@ -73,10 +73,16 @@ function clearHostState() {
 async function initNetworkInfo() {
   try {
     const res = await fetch('/api/network-info');
-    networkInfo = await res.json();
-    const joinHint = document.getElementById('join-url-text');
-    if (joinHint) {
-      joinHint.textContent = networkInfo.joinUrl || `http://${window.location.host}/join.html`;
+    const data = await res.json();
+    if (data && data.joinUrl) {
+      networkInfo = data;
+      const joinHint = document.getElementById('join-url-text');
+      if (joinHint) {
+        joinHint.textContent = networkInfo.joinUrl;
+      }
+      if (currentGamePin) {
+        renderLobbyQR(currentGamePin, networkInfo.joinUrl);
+      }
     }
   } catch (e) {
     console.warn('Network info fetch error:', e);
@@ -493,37 +499,64 @@ if (btnLaunchLobby) {
 }
 
 // --- STAGE 3: Live Lobby ---
-function renderLobbyQR(pin) {
+// --- STAGE 3: Live Lobby ---
+function renderLobbyQR(pin, customUrl) {
   const qrContainer = document.getElementById('lobby-qrcode');
   if (qrContainer && window.QRCode) {
     qrContainer.innerHTML = '';
-    const joinUrl = `${networkInfo.joinUrl || `http://${window.location.host}/join.html`}?pin=${pin}`;
+    const baseUrl = customUrl || networkInfo.joinUrl || 'http://172.20.10.3:3000/join.html';
+    const fullJoinUrl = baseUrl.includes('?') ? `${baseUrl}&pin=${pin}` : `${baseUrl}?pin=${pin}`;
+
+    const joinHint = document.getElementById('join-url-text');
+    if (joinHint) {
+      joinHint.textContent = baseUrl;
+    }
+
     new window.QRCode(qrContainer, {
-      text: joinUrl,
-      width: 170,
-      height: 170
+      text: fullJoinUrl,
+      width: 180,
+      height: 180
     });
   }
 }
 
-socket.on('host:game_created', ({ pin, totalQuestions, timePerQuestion }) => {
+socket.on('host:game_created', ({ pin, totalQuestions, timePerQuestion, localIp, joinUrl }) => {
   currentGamePin = pin;
+  if (joinUrl) {
+    networkInfo.joinUrl = joinUrl;
+    networkInfo.localIp = localIp;
+  }
   saveHostState({ currentView: 'lobby', currentGamePin: pin });
   switchView('lobby');
 
   const pinDisplay = document.getElementById('pin-display');
   if (pinDisplay) pinDisplay.textContent = pin;
 
-  renderLobbyQR(pin);
-
-  const joinHint = document.getElementById('join-url-text');
-  if (joinHint) {
-    joinHint.textContent = `${window.location.host}/join.html`;
-  }
+  renderLobbyQR(pin, joinUrl);
 
   // Play background groove
   window.quizAudio.playLobbyMusic();
 });
+
+// Click to copy Join URL
+const joinUrlText = document.getElementById('join-url-text');
+if (joinUrlText) {
+  joinUrlText.addEventListener('click', async () => {
+    const urlToCopy = currentGamePin 
+      ? `${networkInfo.joinUrl || 'http://172.20.10.3:3000/join.html'}?pin=${currentGamePin}`
+      : (networkInfo.joinUrl || 'http://172.20.10.3:3000/join.html');
+    try {
+      await navigator.clipboard.writeText(urlToCopy);
+      const original = joinUrlText.textContent;
+      joinUrlText.textContent = '✅ Copied link to clipboard!';
+      setTimeout(() => {
+        joinUrlText.textContent = original;
+      }, 2000);
+    } catch (e) {
+      console.warn('Clipboard write failed:', e);
+    }
+  });
+}
 
 // Real-time Player Join Handling
 socket.on('host:player_joined', ({ players, totalPlayers }) => {
@@ -820,7 +853,11 @@ socket.on('host:restore_state', (data) => {
     switchView('lobby');
     saveHostState({ currentView: 'lobby' });
     updatePlayerRoster(data.players || [], data.totalPlayers || 0);
-    renderLobbyQR(data.pin);
+    if (data.joinUrl) {
+      networkInfo.joinUrl = data.joinUrl;
+      networkInfo.localIp = data.localIp;
+    }
+    renderLobbyQR(data.pin, data.joinUrl);
   } else if (data.state === 'QUESTION' || data.state === 'COUNTDOWN') {
     switchView('question');
     saveHostState({ currentView: 'question' });

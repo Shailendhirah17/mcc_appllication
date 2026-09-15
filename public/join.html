@@ -1,44 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kahoot Player - Join Quiz</title>
-  <meta name="description" content="Join real-time Kahoot-style quiz on your phone with game PIN.">
+  <meta name="description" content="Join real-time CCE-style quiz on your phone with game PIN.">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/mobile.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" href="/favicon.ico">
 </head>
+
 <body class="mobile-body">
   <div class="mobile-viewport">
-    
+
     <!-- SCREEN 1: Join Game (PIN & Nickname) -->
     <div id="screen-join" class="mobile-screen active">
-      <h1 class="join-brand">⚡ KahootMCQ</h1>
+      <h1 class="join-brand">⚡ CCE_Quizzer</h1>
 
       <div class="join-form">
         <div>
-          <input 
-            type="text" 
-            id="player-pin-input" 
-            class="mobile-input" 
-            placeholder="Game PIN" 
-            inputmode="numeric" 
-            maxlength="6"
-            autocomplete="off"
-          >
+          <input type="text" id="player-pin-input" class="mobile-input" placeholder="Game PIN" inputmode="numeric"
+            maxlength="6" autocomplete="off">
         </div>
 
         <div>
-          <input 
-            type="text" 
-            id="player-name-input" 
-            class="mobile-input" 
-            placeholder="Your Nickname" 
-            maxlength="15"
-            autocomplete="off"
-          >
+          <input type="text" id="player-name-input" class="mobile-input" placeholder="Your Nickname" maxlength="15"
+            autocomplete="off">
         </div>
 
         <!-- Avatar Choice -->
@@ -131,7 +120,7 @@
     <div id="screen-final" class="mobile-screen">
       <div style="font-size: 4.5rem; margin-bottom: 8px;">🏆</div>
       <h2 class="final-student-title">Game Finished!</h2>
-      
+
       <div id="final-rank-badge" class="final-rank-badge">🥇 1st Place!</div>
 
       <div class="final-stats-grid">
@@ -155,4 +144,5 @@
   <script src="js/audio.js"></script>
   <script src="js/student.js"></script>
 </body>
+
 </html>

@@ -33,14 +33,24 @@ const upload = multer({
 // Helper: Get local network IP for mobile phone join
 function getLocalNetworkIp() {
   const interfaces = os.networkInterfaces();
+  const priorityList = ['en0', 'en1', 'wlan0', 'eth0'];
+  for (const pName of priorityList) {
+    if (interfaces[pName]) {
+      for (const iface of interfaces[pName]) {
+        if (iface.family === 'IPv4' && !iface.internal && iface.address !== '127.0.0.1') {
+          return iface.address;
+        }
+      }
+    }
+  }
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === 'IPv4' && !iface.internal && iface.address !== '127.0.0.1') {
         return iface.address;
       }
     }
   }
-  return 'localhost';
+  return '172.20.10.3';
 }
 
 // In-Memory Game Store
@@ -550,10 +560,15 @@ io.on('connection', (socket) => {
     socket.gamePin = pin;
     socket.isHost = true;
 
+    const localIp = getLocalNetworkIp();
+    const joinUrl = `http://${localIp}:${PORT}/join.html`;
+
     socket.emit('host:game_created', {
       pin,
       totalQuestions: liveQuestions.length,
-      timePerQuestion: game.timePerQuestion
+      timePerQuestion: game.timePerQuestion,
+      localIp,
+      joinUrl
     });
   });
 
@@ -699,8 +714,13 @@ io.on('connection', (socket) => {
         ? game.questions[game.currentQuestionIndex]
         : null;
 
+      const localIp = getLocalNetworkIp();
+      const joinUrl = `http://${localIp}:${PORT}/join.html`;
+
       socket.emit('host:restore_state', {
         pin: game.pin,
+        localIp,
+        joinUrl,
         state: game.state,
         totalQuestions: game.questions.length,
         currentQuestionIndex: game.currentQuestionIndex,
