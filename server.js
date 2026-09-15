@@ -1030,3 +1030,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📱 Phone Join URL:    http://${localIp}:${PORT}/join.html`);
   console.log(`====================================================`);
 });
+
+module.exports = app;
+
