@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kahoot Player - Join Quiz</title>
+  <meta name="description" content="Join real-time Kahoot-style quiz on your phone with game PIN.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body class="mobile-body">
+  <div class="mobile-viewport">
+    
+    <!-- SCREEN 1: Join Game (PIN & Nickname) -->
+    <div id="screen-join" class="mobile-screen active">
+      <h1 class="join-brand">⚡ KahootMCQ</h1>
+
+      <div class="join-form">
+        <div>
+          <input 
+            type="text" 
+            id="player-pin-input" 
+            class="mobile-input" 
+            placeholder="Game PIN" 
+            inputmode="numeric" 
+            maxlength="6"
+            autocomplete="off"
+          >
+        </div>
+
+        <div>
+          <input 
+            type="text" 
+            id="player-name-input" 
+            class="mobile-input" 
+            placeholder="Your Nickname" 
+            maxlength="15"
+            autocomplete="off"
+          >
+        </div>
+
+        <!-- Avatar Choice -->
+        <div>
+          <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">Pick Your Avatar</div>
+          <div class="avatar-selector">
+            <div class="avatar-chip selected" data-avatar="🚀">🚀</div>
+            <div class="avatar-chip" data-avatar="🦁">🦁</div>
+            <div class="avatar-chip" data-avatar="⚡">⚡</div>
+            <div class="avatar-chip" data-avatar="🦊">🦊</div>
+            <div class="avatar-chip" data-avatar="🌟">🌟</div>
+            <div class="avatar-chip" data-avatar="🍕">🍕</div>
+            <div class="avatar-chip" data-avatar="🎯">🎯</div>
+            <div class="avatar-chip" data-avatar="🦄">🦄</div>
+          </div>
+        </div>
+
+        <div id="join-error-msg" style="display: none; color: #ff6b6b; font-weight: 600; font-size: 0.95rem;"></div>
+
+        <button id="btn-player-join" class="btn-mobile-join" type="button">
+          Join Game ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: Lobby Waiting Room -->
+    <div id="screen-waiting" class="mobile-screen">
+      <div id="waiting-player-avatar" class="waiting-avatar">🚀</div>
+      <div class="waiting-title">You're in!</div>
+      <div id="waiting-player-name" class="waiting-name">Player</div>
+      <p class="waiting-hint">See your nickname on the host screen? Sit tight, the quiz will begin shortly!</p>
+    </div>
+
+    <!-- SCREEN 3: Live Question & Big 4 Option Touch Buttons -->
+    <div id="screen-question" class="mobile-screen" style="padding: 0; justify-content: flex-start;">
+      <div class="mobile-question-header">
+        <div id="mobile-q-num" class="mobile-q-num">Q1/10</div>
+        <div id="mobile-timer-pill" class="mobile-timer-pill">⏳ 20s</div>
+      </div>
+
+      <div id="mobile-q-preview" class="mobile-question-preview">
+        Question loading...
+      </div>
+
+      <!-- Massive 4 Kahoot Option Buttons (2x2 Touch Grid) -->
+      <div class="mobile-buttons-grid">
+        <button class="touch-btn btn-red" data-index="0" type="button">
+          <span class="btn-symbol">▲</span>
+          <span class="btn-text">Option A</span>
+        </button>
+        <button class="touch-btn btn-blue" data-index="1" type="button">
+          <span class="btn-symbol">◆</span>
+          <span class="btn-text">Option B</span>
+        </button>
+        <button class="touch-btn btn-yellow" data-index="2" type="button">
+          <span class="btn-symbol">●</span>
+          <span class="btn-text">Option C</span>
+        </button>
+        <button class="touch-btn btn-green" data-index="3" type="button">
+          <span class="btn-symbol">■</span>
+          <span class="btn-text">Option D</span>
+        </button>
+      </div>
+
+      <!-- Locked-In Feedback Overlay -->
+      <div id="answer-locked-banner" class="answer-locked-banner">
+        <div>🔒 Answer Recorded!</div>
+        <div style="font-size: 0.95rem; font-weight: normal; color: var(--text-muted); margin-top: 4px;">
+          Waiting for others & timer...
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: Question Result / Personal Scorecard -->
+    <div id="screen-result" class="mobile-screen student-result-screen">
+      <div id="result-hero-icon" class="result-hero-icon">🎉</div>
+      <div id="result-hero-title" class="result-hero-title">CORRECT!</div>
+      <div id="result-points-badge" class="points-badge">+920 pts</div>
+
+      <div id="result-rank-card" class="rank-card">
+        <div>Rank <strong>#1</strong></div>
+        <div>|</div>
+        <div>Score: <strong>920 pts</strong></div>
+      </div>
+
+      <div id="result-streak-box" class="streak-flame"></div>
+    </div>
+
+    <!-- SCREEN 5: Final Scorecard -->
+    <div id="screen-final" class="mobile-screen">
+      <div style="font-size: 4.5rem; margin-bottom: 8px;">🏆</div>
+      <h2 class="final-student-title">Game Finished!</h2>
+      
+      <div id="final-rank-badge" class="final-rank-badge">🥇 1st Place!</div>
+
+      <div class="final-stats-grid">
+        <div class="final-stat-box">
+          <div id="final-score-val" class="final-stat-val">0</div>
+          <div class="final-stat-label">Total Points</div>
+        </div>
+        <div class="final-stat-box">
+          <div id="final-accuracy-val" class="final-stat-val">0/10</div>
+          <div class="final-stat-label">Correct Answers</div>
+        </div>
+      </div>
+
+      <p id="final-podium-hint" style="margin-top: 24px; font-weight: 600; color: #ffca3a; font-size: 1.1rem;"></p>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/student.js"></script>
+</body>
+</html>

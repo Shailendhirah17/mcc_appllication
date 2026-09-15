@@ -1,0 +1,407 @@
+/* Mobile Student App Styling - Optimized for Touch & High Energy Kahoot Gameplay */
+
+:root {
+  --mobile-red: #e21b3c;
+  --mobile-blue: #1368ce;
+  --mobile-yellow: #d89e00;
+  --mobile-green: #26890c;
+}
+
+body.mobile-body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #190a2e;
+  overflow: hidden;
+  font-family: var(--font-body);
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-viewport {
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Mobile Screen Container */
+.mobile-screen {
+  display: none;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: fadeIn 0.25s ease forwards;
+}
+
+.mobile-screen.active {
+  display: flex;
+}
+
+/* Screen 1: Join */
+.join-brand {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #ff416c, #ffb703);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.join-form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-input {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.25rem;
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-align: center;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.mobile-input:focus {
+  border-color: #00d2ff;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.3);
+}
+
+.avatar-selector {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+
+.avatar-chip {
+  font-size: 1.6rem;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.avatar-chip.selected {
+  border-color: #ffca3a;
+  background: rgba(255, 202, 58, 0.2);
+  transform: scale(1.15);
+}
+
+.btn-mobile-join {
+  width: 100%;
+  padding: 18px;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #1368ce, #00d2ff);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(19, 104, 206, 0.4);
+  transition: transform 0.15s;
+}
+
+.btn-mobile-join:active {
+  transform: scale(0.97);
+}
+
+/* Screen 2: Waiting Lobby */
+.waiting-avatar {
+  font-size: 5rem;
+  margin-bottom: 16px;
+  animation: pulseAvatar 1.5s infinite alternate;
+}
+
+@keyframes pulseAvatar {
+  from { transform: scale(1); }
+  to { transform: scale(1.12); }
+}
+
+.waiting-title {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  color: #38ef7d;
+  margin-bottom: 8px;
+}
+
+.waiting-name {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 24px;
+  border-radius: 30px;
+  margin-bottom: 24px;
+}
+
+.waiting-hint {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  max-width: 280px;
+}
+
+/* Screen 3: Live Question & Big 4 Option Touch Buttons */
+.mobile-question-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.mobile-q-num {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.mobile-timer-pill {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-timer-pill.urgent {
+  background: #ff3838;
+  animation: pulseTimer 0.5s infinite alternate;
+}
+
+.mobile-question-preview {
+  padding: 12px 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.05);
+  width: 100%;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* The 4 Iconic Massive Kahoot Touch Buttons (2x2 Grid) */
+.mobile-buttons-grid {
+  flex: 1;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.touch-btn {
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease, opacity 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.touch-btn:active {
+  transform: scale(0.94);
+}
+
+.touch-btn .btn-symbol {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.touch-btn .btn-text {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  opacity: 0.95;
+  line-height: 1.2;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-red { background: var(--mobile-red); }
+.btn-blue { background: var(--mobile-blue); }
+.btn-yellow { background: var(--mobile-yellow); }
+.btn-green { background: var(--mobile-green); }
+
+/* Locked in answer state */
+.touch-btn.selected {
+  outline: 4px solid #ffffff;
+  transform: scale(0.98);
+  box-shadow: 0 0 24px #ffffff;
+}
+
+.touch-btn.faded {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Answer Submitted Overlay */
+.answer-locked-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(18, 5, 34, 0.92);
+  backdrop-filter: blur(16px);
+  border: 2px solid var(--accent-cyan);
+  padding: 24px 32px;
+  border-radius: 20px;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  z-index: 40;
+  display: none;
+}
+
+.answer-locked-banner.show {
+  display: block;
+}
+
+/* Screen 4: Scorecard / Question Result (Student View) */
+.student-result-screen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.student-result-screen.correct-bg {
+  background: radial-gradient(circle, #1e6d09 0%, #104104 100%);
+}
+
+.student-result-screen.wrong-bg {
+  background: radial-gradient(circle, #b8142f 0%, #520512 100%);
+}
+
+.result-hero-icon {
+  font-size: 5rem;
+  margin-bottom: 12px;
+  animation: bounceAvatar 0.5s ease;
+}
+
+.result-hero-title {
+  font-family: var(--font-heading);
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.points-badge {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 10px 24px;
+  border-radius: 30px;
+  margin-bottom: 24px;
+}
+
+.rank-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.streak-flame {
+  margin-top: 14px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffa602;
+}
+
+/* Screen 5: Final Scorecard (Student View) */
+.final-student-title {
+  font-family: var(--font-heading);
+  font-size: 2.8rem;
+  margin-bottom: 12px;
+  color: #ffca3a;
+}
+
+.final-rank-badge {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 14px 32px;
+  border-radius: 30px;
+  margin-bottom: 20px;
+}
+
+.final-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 12px;
+}
+
+.final-stat-box {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.final-stat-val {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  color: #00d2ff;
+}
+
+.final-stat-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

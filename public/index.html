@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kahoot PDF to MCQ Generator & Real-Time Multiplayer Quiz</title>
+  <meta name="description" content="Generate MCQs from any PDF document and host real-time Kahoot-style multiplayer quizzes with phone joining, live timers, and instant scorecards.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- App Navigation Header -->
+  <header class="app-header">
+    <a href="/" class="logo-wrap">
+      <span class="logo-badge">⚡ KahootMCQ</span>
+      <span class="logo-tag">Live Host</span>
+    </a>
+    <div class="header-controls">
+      <button id="btn-mute" class="icon-btn" title="Toggle Game Audio">🔊 Sound On</button>
+      <a href="/join.html" target="_blank" class="icon-btn primary" title="Open Phone Join Screen in new tab">📱 Student View</a>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- STAGE 1: PDF Upload & Configuration -->
+    <section id="view-upload" class="view-section active">
+      <div class="hero-box">
+        <h1 class="hero-title">Turn Any PDF into a Live Kahoot Quiz</h1>
+        <p class="hero-subtitle">Upload your lecture notes, question bank, or textbook PDF. We'll extract MCQs, set up the first 10 for a live multiplayer quiz with phone join, and let you download the rest!</p>
+      </div>
+
+      <div class="config-grid">
+        <!-- PDF Dropzone Card -->
+        <div class="glass-card">
+          <h2 class="card-title">📄 1. Select PDF Document</h2>
+          <div id="dropzone" class="dropzone">
+            <div class="drop-icon">📑</div>
+            <div class="drop-text">Drag & drop your PDF here</div>
+            <div class="drop-hint">or click to browse from computer (Max 25MB)</div>
+            <input type="file" id="file-input" accept="application/pdf" style="display: none;">
+          </div>
+          <div id="file-status" class="file-status">
+            <span id="file-name-label">Document loaded</span>
+            <span>✅ Ready</span>
+          </div>
+
+          <button id="btn-sample-100" class="sample-btn" type="button" style="border-color: #00d2ff; color: #00d2ff;">
+            📚 Load Sample 100-Question Exam Bank (10 Live + 90 Downloadable)
+          </button>
+          <button id="btn-sample" class="sample-btn" type="button">
+            🚀 Or Load Quick Sample Quiz (15 MCQs)
+          </button>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="glass-card">
+          <h2 class="card-title">⚙️ 2. Quiz Configuration</h2>
+          <div class="input-group">
+            <label class="input-label" for="question-count-select">Questions to Extract / Synthesize</label>
+            <select id="question-count-select" class="select-input">
+              <option value="100" selected>100 MCQs (10 Live + 90 Downloadable)</option>
+              <option value="all">Extract All in PDF (Up to 100+)</option>
+              <option value="50">50 MCQs (10 Live + 40 Downloadable)</option>
+              <option value="25">25 MCQs (10 Live + 15 Downloadable)</option>
+              <option value="15">15 MCQs (10 Live + 5 Downloadable)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="api-key-input">Gemini API Key (Optional)</label>
+            <input type="password" id="api-key-input" class="text-input" placeholder="AI Studio Key (Leave blank to use built-in smart parser)">
+            <span style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: block;">
+              💡 Works out of the box! If left blank, our intelligent built-in parser extracts questions and answers automatically.
+            </span>
+          </div>
+
+          <button id="btn-generate" class="btn-generate">
+            ⚡ Extract / Generate MCQs
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STAGE 2: Review & Download Remaining Split -->
+    <section id="view-review" class="view-section">
+      <div class="split-banner">
+        <div>
+          <h2 style="font-family: var(--font-heading); font-size: 1.8rem; margin-bottom: 6px;">MCQs Extracted Successfully!</h2>
+          <p style="color: var(--text-muted); font-size: 1.05rem;">The first 10 questions are queued for the live interactive quiz. Remaining questions can be downloaded below.</p>
+        </div>
+
+        <div class="split-stats">
+          <div class="stat-chip live">
+            <span>🎮 Live Quiz:</span>
+            <strong id="stat-live-count">10 Questions</strong>
+          </div>
+          <div class="stat-chip remaining">
+            <span>📦 Extra / Remaining:</span>
+            <strong id="stat-rem-count">5 Questions</strong>
+          </div>
+        </div>
+
+        <div class="download-actions">
+          <a id="btn-dl-rem-csv" class="btn-download" href="#" download>📥 Download Remaining (CSV)</a>
+          <a id="btn-dl-rem-json" class="btn-download" href="#" download>📥 Download Remaining (JSON)</a>
+          <a id="btn-dl-rem-txt" class="btn-download" href="#" download>📝 Study Sheet (TXT)</a>
+          <a id="btn-dl-all-csv" class="btn-download" href="#" download style="background: rgba(134, 76, 191, 0.35);">📦 Download All (CSV)</a>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 14px;">
+          <h3 style="font-family: var(--font-heading); font-size: 1.4rem;">🎯 Live Quiz Questions (First 10)</h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label for="time-per-q-select" style="font-weight: 600; color: var(--text-muted);">Timer per question:</label>
+            <select id="time-per-q-select" class="select-input" style="width: auto; padding: 6px 14px;">
+              <option value="15">15 seconds</option>
+              <option value="20" selected>20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="45">45 seconds</option>
+            </select>
+            <button id="btn-launch-lobby" class="btn-generate" style="margin-top: 0; padding: 12px 28px; font-size: 1.2rem; width: auto;">
+              🚀 Launch Live Lobby
+            </button>
+          </div>
+        </div>
+
+        <div id="review-list-container" class="review-list">
+          <!-- Populated by host.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- STAGE 3: Live Lobby Screen -->
+    <section id="view-lobby" class="view-section">
+      <div class="lobby-wrap">
+        <div class="lobby-top-bar">
+          <div class="lobby-pin-block">
+            <div class="pin-label">Join with Game PIN</div>
+            <div id="pin-display" class="pin-display">------</div>
+            <div class="join-url-hint">
+              Join at: <strong id="join-url-text">localhost:3000/join.html</strong>
+            </div>
+          </div>
+
+          <div class="lobby-qr-block" title="Scan with phone camera to join">
+            <div id="lobby-qrcode"></div>
+          </div>
+        </div>
+
+        <div class="players-roster-title">
+          <span>👥 Students in Lobby</span>
+          <span id="roster-count" class="roster-count">0</span>
+        </div>
+
+        <div id="players-grid" class="players-grid">
+          <!-- Dynamic Player Avatar Tags -->
+        </div>
+
+        <button id="btn-start-game" class="btn-start-game" disabled>
+          ▶ Start Quiz
+        </button>
+      </div>
+    </section>
+
+    <!-- STAGE 4: Live Question Screen -->
+    <section id="view-question" class="view-section">
+      <div class="question-live-header">
+        <div id="live-q-progress" class="q-progress">Question 1 of 10</div>
+        
+        <div class="timer-circle-wrap">
+          <div id="timer-seconds-display" class="timer-seconds">20</div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div id="live-answered-count" class="answer-counter">0 / 0 Answered</div>
+          <button id="btn-skip-question" class="icon-btn" title="End question early">End Question ⏭</button>
+        </div>
+      </div>
+
+      <div class="question-text-box">
+        <h2 id="live-question-text">Question Loading...</h2>
+      </div>
+
+      <div class="kahoot-options-grid">
+        <div class="kahoot-card card-red">
+          <span class="symbol-badge">▲</span>
+          <span id="opt-text-0">Option A</span>
+        </div>
+        <div class="kahoot-card card-blue">
+          <span class="symbol-badge">◆</span>
+          <span id="opt-text-1">Option B</span>
+        </div>
+        <div class="kahoot-card card-yellow">
+          <span class="symbol-badge">●</span>
+          <span id="opt-text-2">Option C</span>
+        </div>
+        <div class="kahoot-card card-green">
+          <span class="symbol-badge">■</span>
+          <span id="opt-text-3">Option D</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STAGE 5: Question Scorecard / Leaderboard -->
+    <section id="view-results" class="view-section">
+      <div class="results-wrap">
+        <div class="results-header-box">
+          <div id="correct-answer-banner" class="correct-answer-banner">
+            <span>Correct Answer:</span>
+            <strong>Option A</strong>
+          </div>
+
+          <!-- Answer Distribution Chart -->
+          <div class="distribution-chart">
+            <div class="dist-bar-col">
+              <div id="dist-count-0" class="dist-count">0</div>
+              <div id="dist-bar-0" class="dist-bar bar-0" style="height: 10px;"></div>
+              <div class="dist-symbol" style="color: var(--color-red);">▲</div>
+            </div>
+            <div class="dist-bar-col">
+              <div id="dist-count-1" class="dist-count">0</div>
+              <div id="dist-bar-1" class="dist-bar bar-1" style="height: 10px;"></div>
+              <div class="dist-symbol" style="color: var(--color-blue);">◆</div>
+            </div>
+            <div class="dist-bar-col">
+              <div id="dist-count-2" class="dist-count">0</div>
+              <div id="dist-bar-2" class="dist-bar bar-2" style="height: 10px;"></div>
+              <div class="dist-symbol" style="color: var(--color-yellow);">●</div>
+            </div>
+            <div class="dist-bar-col">
+              <div id="dist-count-3" class="dist-count">0</div>
+              <div id="dist-bar-3" class="dist-bar bar-3" style="height: 10px;"></div>
+              <div class="dist-symbol" style="color: var(--color-green);">■</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="leaderboard-box">
+          <div class="lb-title">
+            <span>🏆 Scorecard & Leaderboard</span>
+            <button id="btn-next-step" class="btn-generate" style="margin-top: 0; padding: 12px 28px; width: auto; font-size: 1.2rem;">
+              Next Question ➔
+            </button>
+          </div>
+
+          <div id="leaderboard-rows" class="lb-list">
+            <!-- Dynamic Leaderboard items -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STAGE 6: Final Podium & Game Scorecard -->
+    <section id="view-podium" class="view-section podium-section">
+      <h1 class="podium-title">🎉 Final Podium & Results</h1>
+      <p style="color: var(--text-muted); font-size: 1.2rem;">Congratulations to all participants!</p>
+
+      <div class="podium-stage">
+        <!-- 2nd Place -->
+        <div class="podium-col second">
+          <div id="podium-2nd-avatar" class="podium-avatar">🥈</div>
+          <div id="podium-2nd-name" class="podium-name">-</div>
+          <div id="podium-2nd-score" class="podium-score">0 pts</div>
+          <div class="podium-pillar">2</div>
+        </div>
+
+        <!-- 1st Place -->
+        <div class="podium-col first">
+          <div id="podium-1st-avatar" class="podium-avatar">👑</div>
+          <div id="podium-1st-name" class="podium-name">-</div>
+          <div id="podium-1st-score" class="podium-score">0 pts</div>
+          <div class="podium-pillar">1</div>
+        </div>
+
+        <!-- 3rd Place -->
+        <div class="podium-col third">
+          <div id="podium-3rd-avatar" class="podium-avatar">🥉</div>
+          <div id="podium-3rd-name" class="podium-name">-</div>
+          <div id="podium-3rd-score" class="podium-score">0 pts</div>
+          <div class="podium-pillar">3</div>
+        </div>
+      </div>
+
+      <!-- Full Standings Table -->
+      <table class="full-rankings-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Total Score</th>
+            <th>Accuracy</th>
+          </tr>
+        </thead>
+        <tbody id="final-rankings-body">
+          <!-- Dynamic Ranking Rows -->
+        </tbody>
+      </table>
+
+      <div style="margin-top: 32px; display: flex; gap: 16px;">
+        <button id="btn-play-again" class="btn-generate" style="width: auto; padding: 14px 36px;">
+          🔄 Host Another Quiz
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/qrcode.min.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>
