@@ -676,14 +676,14 @@ io.on('connection', (socket) => {
 
     io.to(game.hostSocketId).emit('host:answer_count_update', {
       totalAnswered,
-      totalPlayers
+      totalPlayers,
+      allAnswered: totalAnswered >= totalPlayers
     });
 
-    // If all players have answered, finish question immediately!
-    if (totalAnswered >= totalPlayers) {
-      clearInterval(game.timerInterval);
-      finishQuestion(game);
-    }
+    // NOTE: Answers and results are ONLY revealed when:
+    // 1) The timer expires naturally (currentTimeLeft <= 0), OR
+    // 2) The host clicks the "Skip Timer / Reveal" button.
+    // Early finish is NOT triggered automatically, keeping players in anticipation.
   });
 
   // Disconnect handling

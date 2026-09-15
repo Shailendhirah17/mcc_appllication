@@ -127,7 +127,19 @@ async function runEndToEndTest() {
   emmaSocket.emit('player:submit_answer', { optionIndex: 1 });
   liamSocket.emit('player:submit_answer', { optionIndex: 0 });
 
-  // 8. Receive Question Scorecard
+  // Verify that answers are NOT immediately revealed just because both players answered
+  let prematureReveal = false;
+  const tempListener = () => { prematureReveal = true; };
+  emmaSocket.once('player:question_result', tempListener);
+
+  await new Promise(r => setTimeout(r, 600));
+  if (prematureReveal) {
+    throw new Error('Answers should NOT be revealed immediately upon answering. They must wait for timer end or host skip!');
+  }
+  console.log('✓ Confirmed: Answer is NOT revealed prematurely after both players answered.');
+
+  // Now simulate Host clicking "Skip Timer & Reveal" button
+  console.log('8. Host clicks "Skip Timer & Reveal" button (or waits for timer end)...');
   const [emmaResult, hostResult] = await Promise.all([
     new Promise((resolve) => {
       emmaSocket.on('player:question_result', (res) => {
@@ -140,6 +152,11 @@ async function runEndToEndTest() {
         console.log(`✓ Host question scorecard received: Correct Option=${res.correctOptionIndex}, Leaderboard Top 1: ${res.leaderboard[0]?.nickname} (${res.leaderboard[0]?.score} pts)`);
         resolve(res);
       });
+    }),
+    new Promise((resolve) => {
+      // Trigger host skip timer
+      hostSocket.emit('host:next');
+      resolve();
     })
   ]);
 
@@ -163,14 +180,18 @@ async function runEndToEndTest() {
   let qIdx = 0;
   hostSocket.on('host:question_start', (q) => {
     qIdx = q.questionIndex;
-    // Both answer immediately
+    // Both answer
     emmaSocket.emit('player:submit_answer', { optionIndex: 1 });
     liamSocket.emit('player:submit_answer', { optionIndex: 0 });
+    // Host clicks "Skip Timer & Reveal" button
+    setTimeout(() => {
+      hostSocket.emit('host:next');
+    }, 150);
   });
 
   hostSocket.on('host:question_result', (res) => {
     setTimeout(() => {
-      hostSocket.emit('host:next');
+      hostSocket.emit('host:next'); // Advance to next question from scoreboard
     }, 100);
   });
 

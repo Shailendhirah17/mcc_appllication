@@ -543,10 +543,14 @@ socket.on('game:timer_tick', ({ currentTimeLeft }) => {
 });
 
 // Real-time answers count update
-socket.on('host:answer_count_update', ({ totalAnswered, totalPlayers }) => {
+socket.on('host:answer_count_update', ({ totalAnswered, totalPlayers, allAnswered }) => {
   const answerCount = document.getElementById('live-answered-count');
   if (answerCount) {
-    answerCount.textContent = `${totalAnswered} / ${totalPlayers}`;
+    if (allAnswered) {
+      answerCount.innerHTML = `<strong>${totalAnswered} / ${totalPlayers} (All in! ⏳)</strong>`;
+    } else {
+      answerCount.textContent = `${totalAnswered} / ${totalPlayers} Answered`;
+    }
   }
 });
 
